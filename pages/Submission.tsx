@@ -123,7 +123,7 @@ const Submission: React.FC = () => {
               onClick={() => fileInputRef.current?.click()}
               className={`
                 w-full aspect-video rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors relative overflow-hidden
-                ${previewUrl ? 'border-indigo-200 bg-black' : 'border-slate-300 hover:bg-slate-50 hover:border-indigo-400'}
+                ${previewUrl ? 'border-red-200 bg-black' : 'border-slate-300 hover:bg-slate-50 hover:border-sparta-red'}
               `}
             >
               {previewUrl ? (
@@ -134,8 +134,8 @@ const Submission: React.FC = () => {
                 )
               ) : (
                 <div className="text-center p-4">
-                  <div className="bg-indigo-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Upload className="text-indigo-600" size={28} />
+                  <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Upload className="text-sparta-red" size={28} />
                   </div>
                   <p className="font-bold text-slate-700">파일 선택</p>
                 </div>
@@ -162,7 +162,7 @@ const Submission: React.FC = () => {
                   value={authorName}
                   onChange={(e) => setAuthorName(e.target.value)}
                   placeholder="홍길동"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-sparta-red"
                   required
                 />
               </div>
@@ -171,7 +171,7 @@ const Submission: React.FC = () => {
                 <select
                   value={authorAgeGroup}
                   onChange={(e) => setAuthorAgeGroup(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-indigo-500"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-300 outline-none focus:border-sparta-red"
                   required
                 >
                   <option value="">선택하세요</option>
@@ -189,7 +189,7 @@ const Submission: React.FC = () => {
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white text-lg font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
+            className="w-full bg-sparta-red hover:bg-sparta-red-dark text-white text-lg font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
           >
             {isSubmitting ? <Loader2 className="animate-spin" /> : '작품 등록하기'}
           </button>

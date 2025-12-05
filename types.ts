@@ -5,6 +5,7 @@ export interface Artwork {
   authorName: string;
   authorAgeGroup: string; // 연령대 (예: '40대', '50대', '60대')
   votes: number;
+  shares?: number; // 공유 횟수
   timestamp: number;
 }
 

@@ -1,19 +1,21 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, PlusCircle, Trophy, User } from 'lucide-react';
+import { Home, ExternalLink } from 'lucide-react';
+
+const COURSE_URL = 'https://bit.ly/48PviDn';
 import { Artwork, INITIAL_ARTWORKS } from './types';
 import Gallery from './pages/Gallery';
 import Submission from './pages/Submission';
 import ArtworkDetail from './pages/ArtworkDetail';
-import LeadGen from './pages/LeadGen';
 import { supabase } from './services/supabaseClient';
 
 // Global Context for Artworks
 interface AppContextType {
   artworks: Artwork[];
   addArtwork: (artwork: Artwork) => void;
-  voteArtwork: (id: string) => void;
+  toggleVote: (id: string) => Promise<boolean>; // returns true if voted, false if unvoted
   checkUserVoted: (id: string) => boolean;
+  trackShare: (id: string) => void;
   isLoading: boolean;
 }
 
@@ -29,17 +31,22 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-16 md:pb-0">
-       {/* Mobile Header - Simple */}
+    <div className="min-h-screen bg-slate-50 flex flex-col pb-16">
+       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-            <span className="text-xl font-bold text-slate-800 tracking-tight">Sparta Gallery</span>
+            <img src="/logo.png" alt="SPARTA Club" className="h-8" />
           </Link>
-          <Link to="/join" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">
-            강의 문의하기
-          </Link>
+          <a 
+            href={COURSE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-sm font-medium text-sparta-red hover:text-sparta-red-dark"
+          >
+            강의 보기
+            <ExternalLink size={14} />
+          </a>
         </div>
       </header>
 
@@ -48,31 +55,28 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<Gallery />} />
           <Route path="/submit" element={<Submission />} />
           <Route path="/artwork/:id" element={<ArtworkDetail />} />
-          <Route path="/join" element={<LeadGen />} />
         </Routes>
       </main>
 
-      {/* Mobile Bottom Nav - Simplified for Users */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 md:hidden z-50">
-        <div className="flex justify-around items-center h-16">
-          <Link to="/" className={`flex flex-col items-center justify-center w-full h-full ${location.pathname === '/' ? 'text-indigo-600' : 'text-slate-400'}`}>
+      {/* Bottom Nav - Both Mobile & Desktop */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50">
+        <div className="max-w-4xl mx-auto flex justify-around items-center h-16">
+          <Link to="/" className={`flex flex-col items-center justify-center w-full h-full ${location.pathname === '/' || location.pathname.startsWith('/artwork') ? 'text-sparta-red' : 'text-slate-400'}`}>
             <Home size={24} />
             <span className="text-xs mt-1">갤러리</span>
           </Link>
-          <Link to="/join" className={`flex flex-col items-center justify-center w-full h-full ${location.pathname === '/join' ? 'text-indigo-600' : 'text-slate-400'}`}>
-            <User size={24} />
-            <span className="text-xs mt-1">문의하기</span>
-          </Link>
+          <a 
+            href={COURSE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center w-full h-full text-slate-400 hover:text-sparta-red transition-colors"
+          >
+            <ExternalLink size={24} />
+            <span className="text-xs mt-1">강의 보기</span>
+          </a>
         </div>
       </nav>
 
-      {/* Desktop Footer */}
-      <footer className="hidden md:block bg-slate-900 text-slate-400 py-8 mt-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <p className="mb-2">스파르타 AI 교육 전시회</p>
-          <p className="text-sm">누구나 AI 아티스트가 될 수 있습니다.</p>
-        </div>
-      </footer>
     </div>
   );
 };
@@ -102,6 +106,7 @@ const App: React.FC = () => {
           authorName: item.author_name,
           authorAgeGroup: item.author_age_group,
           votes: item.votes,
+          shares: item.shares || 0,
           timestamp: new Date(item.created_at).getTime(),
         }));
         setArtworks(mappedArtworks);
@@ -126,31 +131,47 @@ const App: React.FC = () => {
     fetchArtworks();
   };
 
-  const voteArtwork = async (id: string) => {
-    // 1. Optimistic UI Update
-    setArtworks(prev => prev.map(art => 
-      art.id === id ? { ...art, votes: art.votes + 1 } : art
-    ));
-    
-    // 2. Save to local storage
+  const toggleVote = async (id: string): Promise<boolean> => {
     const votedList = JSON.parse(localStorage.getItem('votedArtworks') || '[]');
-    if (!votedList.includes(id)) {
+    const hasVoted = votedList.includes(id);
+    const currentArtwork = artworks.find(a => a.id === id);
+    
+    if (!currentArtwork) return false;
+
+    if (hasVoted) {
+      // Remove vote
+      const newVotedList = votedList.filter((artId: string) => artId !== id);
+      localStorage.setItem('votedArtworks', JSON.stringify(newVotedList));
+      
+      // Optimistic UI Update (decrease)
+      setArtworks(prev => prev.map(art => 
+        art.id === id ? { ...art, votes: Math.max(0, art.votes - 1) } : art
+      ));
+      
+      // Update Supabase
+      await supabase
+        .from('artworks')
+        .update({ votes: Math.max(0, currentArtwork.votes - 1) })
+        .eq('id', id);
+      
+      return false; // unvoted
+    } else {
+      // Add vote
       votedList.push(id);
       localStorage.setItem('votedArtworks', JSON.stringify(votedList));
-    }
-
-    // 3. Update Supabase
-    const currentArtwork = artworks.find(a => a.id === id);
-    if (currentArtwork) {
-      const { error } = await supabase
+      
+      // Optimistic UI Update (increase)
+      setArtworks(prev => prev.map(art => 
+        art.id === id ? { ...art, votes: art.votes + 1 } : art
+      ));
+      
+      // Update Supabase
+      await supabase
         .from('artworks')
         .update({ votes: currentArtwork.votes + 1 })
         .eq('id', id);
       
-      if (error) {
-        console.error('Error updating vote:', error);
-        // Revert on error if needed
-      }
+      return true; // voted
     }
   };
 
@@ -159,8 +180,29 @@ const App: React.FC = () => {
     return votedList.includes(id);
   };
 
+  const trackShare = async (id: string) => {
+    // Track share count in Supabase (optional: create shares column)
+    const currentArtwork = artworks.find(a => a.id === id);
+    if (currentArtwork) {
+      // Update local state
+      setArtworks(prev => prev.map(art => 
+        art.id === id ? { ...art, shares: (art.shares || 0) + 1 } : art
+      ));
+      
+      // Update Supabase (if shares column exists)
+      try {
+        await supabase
+          .from('artworks')
+          .update({ shares: (currentArtwork.shares || 0) + 1 })
+          .eq('id', id);
+      } catch (error) {
+        console.log('Share tracking: shares column may not exist yet');
+      }
+    }
+  };
+
   return (
-    <AppContext.Provider value={{ artworks, addArtwork, voteArtwork, checkUserVoted, isLoading }}>
+    <AppContext.Provider value={{ artworks, addArtwork, toggleVote, checkUserVoted, trackShare, isLoading }}>
       <Router>
         <AppContent />
       </Router>
