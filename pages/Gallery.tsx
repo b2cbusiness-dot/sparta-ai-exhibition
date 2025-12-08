@@ -10,10 +10,13 @@ const Gallery: React.FC = () => {
   const { artworks } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 검색 필터링 + 투표순 정렬
-  const filteredArtworks = artworks.filter(art => 
-    art.authorName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 검색 필터링 + 투표순 정렬 (유니코드 정규화 적용)
+  const filteredArtworks = artworks.filter(art => {
+    const authorName = (art.authorName || '').normalize('NFC');
+    const query = searchQuery.normalize('NFC');
+    return authorName.toLowerCase().includes(query.toLowerCase());
+  });
+  
   const sortedArtworks = [...filteredArtworks].sort((a, b) => b.votes - a.votes);
   const topArtwork = searchQuery ? null : sortedArtworks[0]; // 검색 중에는 1위 섹션 숨김
   const displayArtworks = searchQuery ? sortedArtworks : sortedArtworks.slice(1);
@@ -23,7 +26,7 @@ const Gallery: React.FC = () => {
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-sparta-red to-sparta-red-light rounded-2xl p-6 md:p-10 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10">
-          <h1 className="text-2xl md:text-4xl font-bold mb-4">제1회 시니어 AI 아트 전시회</h1>
+          <h1 className="text-2xl md:text-4xl font-bold mb-4">제1회 AI 아트 전시회</h1>
           <p className="text-red-100 text-lg mb-6 leading-relaxed">
             AI를 처음 배운 분들의 놀라운 작품을 감상해보세요.<br/>
             투표에 참여하고 응원의 마음을 전해주세요.
